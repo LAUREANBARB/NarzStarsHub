@@ -1,0 +1,69 @@
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+
+-- actualizează Camera când se schimbă
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = Workspace.CurrentCamera
+end)
+
+local Active = false
+local BindName = "StretchResolutionBind" -- nume de binding ca să nu fie dubii
+
+local function enableStretch(value)
+    if Active then
+        RunService:UnbindFromRenderStep(BindName)
+        Active = false
+    end
+
+    if value and value > 1 then
+        local Stretch = 1 / value
+        local SquishCFrame = CFrame.new(0, 0, 0, 1, 0, 0, 0, Stretch, 0, 0, 0, 1)
+
+        RunService:BindToRenderStep(BindName, Enum.RenderPriority.Camera.Value + 5, function()
+            if Camera then
+                Camera.CFrame = Camera.CFrame * SquishCFrame
+            end
+        end)
+
+        Active = true
+    end
+end
+
+-- Toggle în UI
+local Toggle = Tab:CreateToggle({
+    Name = "Enable Stretch Resolution",
+    CurrentValue = false,
+    Flag = "StretchToggle",
+    Callback = function(value)
+        if not value then
+            -- dacă dezactivezi toggle-ul, oprește stretch
+            enableStretch(nil)
+        else
+            -- dacă e activ, dar fără valoare, pune default 2 (exemplu)
+            enableStretch(2)
+        end
+    end,
+})
+
+-- Input box să bagi valoarea stretch
+local Input = Tab:CreateInput({
+    Name = "Stretch Value (min 1)",
+    CurrentValue = "2",
+    PlaceholderText = "Introdu un număr >= 1",
+    RemoveTextAfterFocusLost = false,
+    Flag = "StretchValueInput",
+    Callback = function(text)
+        local val = tonumber(text)
+        if val and val >= 1 then
+            if Toggle.CurrentValue then -- dacă toggle-ul e activ, aplică direct
+                enableStretch(val)
+            end
+        else
+            print("Valoare invalidă pentru stretch.")
+            if Toggle.CurrentValue then
+                enableStretch(2) -- fallback default
+            end
+        end
+    end,
+})
