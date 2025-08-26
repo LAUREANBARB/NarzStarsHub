@@ -1,0 +1,1843 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- starting stuff
+
+
+local Window = Rayfield:CreateWindow({
+   Name = "NarzWare.cc FTF HvH Beta",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "NarzWare.cc FTF HvH Beta Ver",
+   LoadingSubtitle = "by NarzTeam ver 0.8",
+   ShowText = "Rayfield", -- for mobile users to unhide rayfield, change if you'd like
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+
+   ToggleUIKeybind = "p", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "NarzWare.cc"
+   },
+
+   Discord = {
+      Enabled = true, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "https://discord.gg/P3c9FUFa", -- The Discord invite code, do not include discord.gg/. E.g. discord.gg/ ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the discord every time they load it up
+   },
+
+   KeySystem = true, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "NarzWare",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is NOT provided", -- Use this to tell the user how to get a key
+      FileName = "narzstarbestkeysys", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"NarzStarsHub"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
+})
+
+
+Rayfield:Notify({
+   Title = "You are using NarzWare.cc Premium",
+   Content = "",
+   Duration = 3,
+   Image = 4483362458,
+})
+-- end starting stuff
+-- start Rage Tab
+
+local Tab = Window:CreateTab("Rage", nil) -- Title, Image
+local Section = Tab:CreateSection("Survivor") -- Title, Icon, Color, IgnoreTheme
+
+local autoEscapeEnabled = false
+local escapeConnection = nil
+local escapePart = nil
+
+-- Funcție de Beast
+local function getBeast()
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        local stats = player:FindFirstChild("TempPlayerStatsModule")
+        if stats and stats:FindFirstChild("IsBeast") and stats.IsBeast.Value == true then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Random safe part
+local function getRandomSafePart()
+    local parts = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Part") and obj.Anchored and obj.Transparency < 1 then
+            table.insert(parts, obj)
+        end
+    end
+    return #parts > 0 and parts[math.random(1, #parts)] or nil
+end
+
+-- Creează proximity part
+local function createEscapeProximity(beast)
+    if escapePart then escapePart:Destroy() end
+    if escapeConnection then escapeConnection:Disconnect() end
+
+    local root = beast.Character and beast.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local part = Instance.new("Part")
+    part.Name = "BeastProximityPart"
+    part.Size = Vector3.new(30, 30, 30)
+    part.Anchored = false
+    part.CanCollide = false
+    part.Transparency = 0.8
+    part.Color = Color3.fromRGB(255, 0, 0)
+    part.Material = Enum.Material.ForceField
+    part.Shape = Enum.PartType.Ball
+    part.Massless = true
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = part
+    weld.Part1 = root
+    weld.Parent = part
+
+    part.CFrame = root.CFrame
+    part.Parent = workspace
+    escapePart = part
+
+    -- Coliziune
+    escapeConnection = part.Touched:Connect(function(hit)
+        local localPlayer = game:GetService("Players").LocalPlayer
+        if hit:IsDescendantOf(localPlayer.Character) then
+            local stats = localPlayer:FindFirstChild("TempPlayerStatsModule")
+            if stats and stats:FindFirstChild("IsBeast") and stats.IsBeast.Value == false then
+                local safePart = getRandomSafePart()
+                local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if safePart and root then
+                    root.CFrame = safePart.CFrame + Vector3.new(0, 5, 0)
+                end
+            end
+        end
+    end)
+end
+
+-- Activează sistemu'
+local function enableAutoEscape()
+    local beast = getBeast()
+    if beast then
+        createEscapeProximity(beast)
+    end
+end
+
+-- Dezactivează
+local function disableAutoEscape()
+    if escapePart then escapePart:Destroy() escapePart = nil end
+    if escapeConnection then escapeConnection:Disconnect() escapeConnection = nil end
+end
+
+-- BAGĂ TARE TASTA MAGICĂ LEGIONARĂ:
+local Toggle = Tab:CreateToggle({
+   Name = "Auto-Escape When Beast Near (noclip recommended)",
+   CurrentValue = false,
+   Flag = "AutoEscapeBeast",
+   Callback = function(Value)
+       autoEscapeEnabled = Value
+       if Value then
+           enableAutoEscape()
+       else
+           disableAutoEscape()
+       end
+   end,
+})
+-- end auto safe
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local toggled = false
+local flingConnection = nil
+local flingPart = nil
+
+-- Random string generator (pt nume body velocity)
+local function randomString()
+	local length = 10
+	local str = ""
+	for i = 1, length do
+		str = str .. string.char(math.random(97, 122))
+	end
+	return str
+end
+
+-- Start fling
+local function startFling()
+	local char = LocalPlayer.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+	-- Setăm părțile
+	for _, part in pairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CustomPhysicalProperties = PhysicalProperties.new(100, 0.3, 0.5)
+			part.CanCollide = false
+			part.Massless = true
+			part.Velocity = Vector3.new(0, 0, 0)
+		end
+	end
+
+	local root = char:FindFirstChild("HumanoidRootPart")
+
+	local bam = Instance.new("BodyAngularVelocity")
+	bam.Name = randomString()
+	bam.AngularVelocity = Vector3.new(0, 99999, 0)
+	bam.MaxTorque = Vector3.new(0, math.huge, 0)
+	bam.P = math.huge
+	bam.Parent = root
+
+	flingPart = bam
+
+	-- Dacă moare, oprim automat
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		flingConnection = humanoid.Died:Connect(function()
+			stopFling()
+		end)
+	end
+
+	-- Loop de rotit
+	task.spawn(function()
+		while toggled and bam and bam.Parent do
+			bam.AngularVelocity = Vector3.new(0, 99999, 0)
+			task.wait(0.2)
+			bam.AngularVelocity = Vector3.new(0, 0, 0)
+			task.wait(0.1)
+		end
+	end)
+end
+
+-- Stop fling
+function stopFling()
+	toggled = false
+	if flingPart then
+		flingPart:Destroy()
+		flingPart = nil
+	end
+	if flingConnection then
+		flingConnection:Disconnect()
+		flingConnection = nil
+	end
+end
+
+-- ✅ UI Toggle
+local Toggle = Tab:CreateToggle({
+	Name = "Fling Mode (spin to win)",
+	CurrentValue = false,
+	Flag = "FlingToggle",
+	Callback = function(Value)
+		toggled = Value
+		if Value then
+			startFling()
+		else
+			stopFling()
+		end
+	end,
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "Replication Lag",
+   CurrentValue = false,
+   Flag = "ReplicationLagToggle",
+   Callback = function(Value)
+       if Value then
+           settings():GetService("NetworkSettings").IncomingReplicationLag = 1
+           print("Replication lag ACTIVAT bă, ai delay de Legiune")
+       else
+           settings():GetService("NetworkSettings").IncomingReplicationLag = 0
+           print("Replication lag dezactivat, ești iar în prezent")
+       end
+   end,
+})local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+local aimAssistEnabled = false
+local maxAimDistance = 200
+local smoothness = 0.25 -- smaller = faster snapping
+
+local function getClosestPlayerToCursor()
+    local closestPlayer = nil
+    local shortestDist = maxAimDistance
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            local screenPos, onScreen = workspace.CurrentCamera:WorldToScreenPoint(hrp.Position)
+
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).magnitude
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if dist < shortestDist and humanoid and humanoid.Health > 0 then
+                    closestPlayer = player
+                    shortestDist = dist
+                end
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+
+RunService.RenderStepped:Connect(function()
+    if aimAssistEnabled then
+        local targetPlayer = getClosestPlayerToCursor()
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local cam = workspace.CurrentCamera
+            local currentCFrame = cam.CFrame
+            local targetPos = targetPlayer.Character.HumanoidRootPart.Position
+
+            local desiredCFrame = CFrame.new(currentCFrame.Position, targetPos)
+            cam.CFrame = currentCFrame:Lerp(desiredCFrame, smoothness)
+        end
+    end
+end)
+
+
+-- end rage 
+local Tab = Window:CreateTab("Anti-Aim", nil) -- Title, Image
+-- anti aim
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local spinning = false
+local spinSpeed = 10 -- grade per frame (default)
+
+-- GUI toggle
+local Toggle = Tab:CreateToggle({
+    Name = "Anti-Aim Spin",
+    CurrentValue = false,
+    Flag = "AntiAimSpinToggle",
+    Callback = function(value)
+        spinning = value
+        print("Spin is now", spinning and "ON" or "OFF")
+    end,
+})
+
+-- GUI slider for speed
+local SpeedSlider = Tab:CreateSlider({
+    Name = "Spin Speed",
+    Range = {1, 50},
+    Increment = 1,
+    Suffix = "deg/frame",
+    CurrentValue = spinSpeed,
+    Flag = "AntiAimSpinSpeed",
+    Callback = function(value)
+        spinSpeed = value
+        print("Spin speed set to", spinSpeed, "degrees per frame")
+    end,
+})
+SpeedSlider:Set(spinSpeed)
+
+-- Spin logic
+RunService.RenderStepped:Connect(function()
+    if spinning and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local root = player.Character.HumanoidRootPart
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+    end
+end)
+--END ANTIAIM
+
+local speaker = game:GetService("Players").LocalPlayer
+HumanModCons = HumanModCons or {}
+
+local function isNumber(str)
+	return tonumber(str) ~= nil
+end
+-- start Legit tab
+local Tab = Window:CreateTab("Legit", nil)
+local Section = Tab:CreateSection("Beast")
+local Toggle = Tab:CreateToggle({
+
+   Name = "Longer reach with hammer swing",
+   CurrentValue = false,
+   Flag = "TFakeiy", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+-- Auto Hack Script for Flee the Facility (LocalPlayer only)
+-- Uses TimingGoalPosition and TimingPinPosition to detect timing event
+-- Must be near a ComputerTrigger to activate
+local toggleActive = false
+local hackLoop
+
+local Toggle = Tab:CreateToggle({
+   Name = "No Fail On Hack",
+   CurrentValue = false,
+   Flag = "NoFailOnHackToggle",
+   Callback = function(Value)
+       toggleActive = Value
+       if toggleActive then
+           hackLoop = spawn(function()
+               while toggleActive do
+                   wait(0.1)
+                   game.ReplicatedStorage.RemoteEvent:FireServer("SetPlayerMinigameResult", true)
+               end
+           end)
+       else
+           if hackLoop then
+               task.cancel(hackLoop) -- sau dacă nu merge, hackLoop=nil și loop se oprește la condiție
+               hackLoop = nil
+           end
+       end
+   end,
+})
+-- end hack pc
+
+-- end legit
+
+
+local Tab = Window:CreateTab("Events", nil) -- Title, Image
+local Paragraph = Tab:CreateParagraph({Title = "Events", Content = "No events yet."})
+
+-- movement tab start
+local Tab = Window:CreateTab("Movement", nil) 
+
+local jumpEnabled = false
+local jumpConnection = nil
+local jumpPower = 120 -- modifică valoarea dacă vrei mai mult sau mai puțin
+
+local function enableJump()
+    if not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = jumpPower
+    end
+    jumpConnection = LocalPlayer.CharacterAdded:Connect(function(char)
+        local hum = char:WaitForChild("Humanoid", 3)
+        if hum then
+            hum.UseJumpPower = true
+            hum.JumpPower = jumpPower
+        end
+    end)
+end
+
+local function disableJump()
+    if not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.JumpPower = 37 -- valoarea default
+    end
+    if jumpConnection then
+        jumpConnection:Disconnect()
+        jumpConnection = nil
+    end
+end
+-- end jump
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local speedEnabled = false
+local walkspeed = 50 -- pune viteza ta de legiune
+local speedUpdater = nil
+
+local function setSpeed()
+    if not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = walkspeed
+    end
+end
+
+local function startSpeedLoop()
+    if speedUpdater then return end -- deja merge legiunea
+    speedUpdater = game:GetService("RunService").Stepped:Connect(function()
+        if speedEnabled then
+            setSpeed()
+        end
+    end)
+end
+
+local function stopSpeedLoop()
+    if speedUpdater then
+        speedUpdater:Disconnect()
+        speedUpdater = nil
+    end
+    -- Resetăm viteza la normal
+    if LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 16
+        end
+    end
+end
+
+local Toggle = Tab:CreateToggle({
+    Name = "Speed Hack (walk faster)",
+    CurrentValue = false,
+    Flag = "SpeedHack",
+    Callback = function(Value)
+        speedEnabled = Value
+        if Value then
+            startSpeedLoop()
+        else
+            stopSpeedLoop()
+        end
+    end,
+})
+--end speed
+
+-- ✅ Jump Boost
+local Toggle = Tab:CreateToggle({
+    Name = "Jump Boost (higher jumps)",
+    CurrentValue = false,
+    Flag = "JumpBoost",
+    Callback = function(Value)
+        jumpEnabled = Value
+        if Value then
+            enableJump()
+        else
+            disableJump()
+        end
+    end,
+})
+
+-- fake duck 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local fakeDuckEnabled = false
+local Humanoid = nil
+local HumanoidRootPart = nil
+local originalHipHeight = nil
+local visualAnimConnection = nil
+
+local tremurOffset = 0.3
+local goingUp = true
+
+local function startVisualAnim()
+    if visualAnimConnection then return end
+    visualAnimConnection = RunService.RenderStepped:Connect(function()
+        if fakeDuckEnabled and HumanoidRootPart then
+            local offset = goingUp and tremurOffset or -tremurOffset
+            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, offset, 0)
+            goingUp = not goingUp
+        end
+    end)
+end
+
+local function stopVisualAnim()
+    if visualAnimConnection then
+        visualAnimConnection:Disconnect()
+        visualAnimConnection = nil
+    end
+end
+
+local function activateFakeDuck()
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    Humanoid = character:FindFirstChildWhichIsA("Humanoid")
+    HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not Humanoid or not HumanoidRootPart then return end
+
+    if not originalHipHeight then
+        originalHipHeight = Humanoid.HipHeight
+    end
+
+    -- Scădem HipHeight ca să încapă prin găuri
+    Humanoid.HipHeight = originalHipHeight - 1.5
+
+    -- Pornim tremuratul mic pe rootpart
+    startVisualAnim()
+
+    fakeDuckEnabled = true
+
+Rayfield:Notify({
+    Title = "Fake Duck ON",
+    Content = "WARNING: Fake duck breaks crouching — if you crouch, it turns off and you gotta enable it again. It also messes with other stuff: the camera shakes a bit, tried to hide it but no luck. You can't use PCs while fake ducking unless you're standing on something higher to reach the trigger. Other possible issues: distant view looks weird, local player ESP may bug out, and edges of your character might look rounded or cause strange falls when stepping off ledges.",
+    Duration = 30,
+    Image = 2328131581,
+})
+
+end
+
+local function deactivateFakeDuck()
+    if Humanoid then
+        Humanoid.HipHeight = originalHipHeight or 2
+    end
+
+    stopVisualAnim()
+
+    fakeDuckEnabled = false
+
+    Rayfield:Notify({
+        Title = "Fake Duck off",
+        Content = "Fake Duck is off crouching should work again",
+        Duration = 4,
+        Image = 4483362458,
+    })
+end
+
+local toggle = Tab:CreateToggle({
+    Name = "FakeDuck",
+    CurrentValue = false,
+    Flag = "FakeDuckSimple",
+    Callback = function(value)
+        if value then
+            activateFakeDuck()
+        else
+            deactivateFakeDuck()
+        end
+    end,
+})
+
+LocalPlayer.CharacterAdded:Connect(function(character)
+    Humanoid = character:WaitForChild("Humanoid")
+    HumanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+    if fakeDuckEnabled then
+        Humanoid.HipHeight = originalHipHeight - 1.5
+        startVisualAnim()
+    else
+        Humanoid.HipHeight = originalHipHeight or 2
+        stopVisualAnim()
+    end
+end)
+-- fake duck end
+-- start silent walk
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local silentWalkEnabled = false
+local stepSounds = {}
+
+local function stopStepSounds(humanoid)
+    for _, sound in ipairs(humanoid:GetDescendants()) do
+        if sound:IsA("Sound") and sound.Name:lower():find("step") then
+            if not stepSounds[sound] then
+                stepSounds[sound] = sound.Volume
+            end
+            sound.Volume = 0
+        end
+    end
+end
+
+local function restoreStepSounds(humanoid)
+    for sound, volume in pairs(stepSounds) do
+        if sound and sound.Parent then
+            sound.Volume = volume
+        end
+    end
+    stepSounds = {}
+end
+
+local function setSilentWalk(state)
+    local character = LocalPlayer.Character
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    if state then
+        stopStepSounds(humanoid)
+    else
+        restoreStepSounds(humanoid)
+    end
+end
+
+local Toggle = Tab:CreateToggle({
+    Name = "Silent Walk (No Speed Change)",
+    CurrentValue = false,
+    Flag = "SilentWalkNoSpeed",
+    Callback = function(value)
+        silentWalkEnabled = value
+        setSilentWalk(value)
+    end,
+})
+
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if silentWalkEnabled then
+        setSilentWalk(true)
+    end
+end)
+
+
+-- end silent walk
+-- movement tab end
+local Tab = Window:CreateTab("Visuals", nil)
+
+local workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+-- LEGION ESP DATA
+local TriggerESPData = {
+    Active = false,
+    Highlights = {},
+    Connections = {}
+}
+
+local doneColor = Color3.fromRGB(40, 127, 71)
+local defaultColor = Color3.fromRGB(255, 0, 0)
+
+-- Verifică dacă monitoru e verde (completat)
+local function getScreenColor(part)
+    local screen = part.Parent and part.Parent:FindFirstChild("Screen")
+    if screen and screen:IsA("BasePart") then
+        return screen.Color
+    end
+    return nil
+end
+
+local function isScreenGreen(color)
+    if not color then return false end
+    local r, g, b = color.R * 255, color.G * 255, color.B * 255
+    return math.abs(r - 40) < 10 and math.abs(g - 127) < 10 and math.abs(b - 71) < 10
+end
+
+-- Curăță toate highlight-urile și conexiunile
+local function clearAll()
+    for _, hl in pairs(TriggerESPData.Highlights) do
+        hl:Destroy()
+    end
+    for _, conn in ipairs(TriggerESPData.Connections) do
+        conn:Disconnect()
+    end
+    TriggerESPData.Highlights = {}
+    TriggerESPData.Connections = {}
+end
+
+-- Creează highlight pe part
+local function createHighlight(part)
+    if TriggerESPData.Highlights[part] then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Trigger_Highlight"
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+
+    local col = getScreenColor(part)
+    if isScreenGreen(col) then
+        highlight.FillColor = doneColor
+        highlight.OutlineColor = doneColor
+    else
+        highlight.FillColor = defaultColor
+        highlight.OutlineColor = defaultColor
+    end
+
+    local model = part.Parent
+    if model and model:IsA("Model") then
+        highlight.Parent = model
+    else
+        highlight.Parent = part
+    end
+
+    TriggerESPData.Highlights[part] = highlight
+
+    table.insert(TriggerESPData.Connections, RunService.Heartbeat:Connect(function()
+        if not highlight or not highlight.Parent then return end
+        local c = getScreenColor(part)
+        if isScreenGreen(c) then
+            highlight.FillColor = doneColor
+            highlight.OutlineColor = doneColor
+        else
+            highlight.FillColor = defaultColor
+            highlight.OutlineColor = defaultColor
+        end
+    end))
+end
+
+-- Activează ESP-ul
+local function activateESP()
+    clearAll()
+    for _, part in ipairs(workspace:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name == "ComputerTrigger1" then
+            createHighlight(part)
+        end
+    end
+    TriggerESPData.Active = true
+
+    table.insert(TriggerESPData.Connections, workspace.DescendantAdded:Connect(function(obj)
+        if obj:IsA("BasePart") and obj.Name == "ComputerTrigger1" and TriggerESPData.Active then
+            task.wait(0.5)
+            createHighlight(obj)
+        end
+    end))
+end
+
+-- Dezactivează ESP-ul
+local function deactivateESP()
+    clearAll()
+    TriggerESPData.Active = false
+end
+
+-- Băgăm în UI
+local Toggle = Tab:CreateToggle({
+    Name = "ESP Hack (Computers)",
+    CurrentValue = false,
+    Flag = "TriggerESP",
+    Callback = function(Value)
+        if Value then
+            activateESP()
+        else
+            deactivateESP()
+        end
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+-- // ESP players
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local NarzESPData = {
+    Active = false,
+    Highlights = {},
+    ESPs = {},
+    Connections = {}
+}
+
+local selectedColor = Color3.fromRGB(128, 0, 128) -- mov regal mafiot
+
+local function clearAll()
+    for _, v in pairs(NarzESPData.Highlights) do v:Destroy() end
+    for _, v in pairs(NarzESPData.ESPs) do v:Destroy() end
+    for _, c in ipairs(NarzESPData.Connections) do c:Disconnect() end
+    NarzESPData.Highlights = {}
+    NarzESPData.ESPs = {}
+    NarzESPData.Connections = {}
+end
+
+local function createESP(player)
+    if NarzESPData.ESPs[player] then return end
+
+    local esp = Instance.new("BillboardGui")
+    esp.Name = "NarzESP"
+    esp.Size = UDim2.new(0, 200, 0, 50)
+    esp.AlwaysOnTop = true
+    esp.ExtentsOffset = Vector3.new(0, 3, 0)
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "Name"
+    nameLabel.Text = player.Name
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.TextColor3 = selectedColor
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextSize = 14
+    nameLabel.TextStrokeTransparency = 0.5
+    nameLabel.Parent = esp
+
+    local head = player.Character and player.Character:FindFirstChild("Head")
+    if head then
+        esp.Parent = head
+    end
+    NarzESPData.ESPs[player] = esp
+
+    table.insert(NarzESPData.Connections, player.CharacterAdded:Connect(function(char)
+        local h = char:WaitForChild("Head", 3)
+        if h then esp.Parent = h end
+    end))
+end
+
+local function createHighlight(player)
+    if NarzESPData.Highlights[player] then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "NarzHighlight"
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.FillColor = selectedColor
+    highlight.OutlineColor = selectedColor
+
+    highlight.Parent = player.Character or player.CharacterAdded:Wait()
+    NarzESPData.Highlights[player] = highlight
+
+    table.insert(NarzESPData.Connections, player.CharacterAdded:Connect(function(char)
+        highlight.Parent = char
+    end))
+end
+
+local function updateScaling()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+
+    for player, esp in pairs(NarzESPData.ESPs) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = player.Character.HumanoidRootPart.Position
+            local distance = (myPos - targetPos).Magnitude
+            local label = esp:FindFirstChild("Name")
+
+            if label then
+                -- Dimensiune și transparență dinamică
+                local scale = math.clamp(distance / 40, 0.6, 2) -- mic de aproape, mare de departe
+                label.TextSize = 14 * scale
+                label.TextTransparency = math.clamp(1 - (distance / 25), 0, 1) -- dispare aproape
+            end
+        end
+    end
+end
+
+local function activateESP()
+    clearAll()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            createHighlight(player)
+            createESP(player)
+        end
+    end
+    table.insert(NarzESPData.Connections, RunService.Heartbeat:Connect(updateScaling))
+    table.insert(NarzESPData.Connections, Players.PlayerAdded:Connect(function(player)
+        task.wait(1)
+        if NarzESPData.Active then
+            createHighlight(player)
+            createESP(player)
+        end
+    end))
+    NarzESPData.Active = true
+end
+
+local function deactivateESP()
+    clearAll()
+    NarzESPData.Active = false
+end
+
+-- UI BĂ TRĂDARE
+local Toggle = Tab:CreateToggle({
+    Name = "ESP (Players)",
+    CurrentValue = false,
+    Flag = "NarzPlayerESP",
+    Callback = function(Value)
+        if Value then
+            activateESP()
+        else
+            deactivateESP()
+        end
+    end,
+})
+
+local ColorPicker = Tab:CreateColorPicker({
+    Name = "ESP Color (Players)",
+    Color = selectedColor,
+    Flag = "NarzPlayerESPColor",
+    Callback = function(Value)
+        selectedColor = Value
+
+        -- Update ESPs
+        for _, esp in pairs(NarzESPData.ESPs) do
+            local label = esp:FindFirstChild("Name")
+            if label then label.TextColor3 = selectedColor end
+        end
+
+        -- Update Highlights
+        for _, hl in pairs(NarzESPData.Highlights) do
+            hl.FillColor = selectedColor
+            hl.OutlineColor = selectedColor
+        end
+    end
+})
+
+
+
+-- end esp player
+
+
+local Divider = Tab:CreateDivider()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local NarzLocalESP = {
+    Active = false,
+    ESP = nil,
+    Highlight = nil,
+    Connections = {}
+}
+
+local selectedColor = Color3.fromRGB(0, 255, 0) -- inițial verde mutant
+
+local function clearLocal()
+    if NarzLocalESP.ESP then NarzLocalESP.ESP:Destroy() end
+    if NarzLocalESP.Highlight then NarzLocalESP.Highlight:Destroy() end
+    for _, c in ipairs(NarzLocalESP.Connections) do
+        c:Disconnect()
+    end
+    NarzLocalESP.ESP = nil
+    NarzLocalESP.Highlight = nil
+    NarzLocalESP.Connections = {}
+end
+
+local function createLocalESP()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Head") then return end
+    clearLocal()
+
+    -- Billboard ESP
+    local esp = Instance.new("BillboardGui")
+    esp.Name = "LocalESP"
+    esp.Size = UDim2.new(0, 200, 0, 50)
+    esp.AlwaysOnTop = true
+    esp.ExtentsOffset = Vector3.new(0, 3, 0)
+
+    local label = Instance.new("TextLabel")
+    label.Name = "Distance"
+    label.Text = "You're you, bro"
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.TextColor3 = selectedColor
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSansBold
+    label.TextScaled = true
+    label.Parent = esp
+
+    esp.Parent = LocalPlayer.Character:FindFirstChild("Head")
+    NarzLocalESP.ESP = esp
+
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "LocalHighlight"
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.FillColor = selectedColor
+    highlight.OutlineColor = selectedColor
+    highlight.Parent = LocalPlayer.Character
+    NarzLocalESP.Highlight = highlight
+
+    -- Distance updater (da, de ce nu)
+    table.insert(NarzLocalESP.Connections, RunService.Heartbeat:Connect(function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - workspace.CurrentCamera.CFrame.Position).Magnitude)
+            if label then
+                label.Text = tostring(dist) .. " studs (You)"
+            end
+        end
+    end))
+
+    -- Respawn handler
+    table.insert(NarzLocalESP.Connections, LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(1)
+        createLocalESP()
+    end))
+end
+
+local function deactivateLocalESP()
+    clearLocal()
+    NarzLocalESP.Active = false
+end
+
+
+-- Toggle ESP pe tine
+
+
+Tab:CreateToggle({
+    Name = "ESP (Local Player)",
+    CurrentValue = false,
+    Flag = "NarzLocalESP",
+    Callback = function(Value)
+        if Value then
+            createLocalESP()
+        else
+            deactivateLocalESP()
+        end
+    end,
+})
+
+-- ColorPicker pentru Local ESP
+Tab:CreateColorPicker({
+    Name = "ESP Color (Local)",
+    Color = selectedColor,
+    Flag = "NarzLocalESPColor",
+    Callback = function(Value)
+        selectedColor = Value
+
+        -- Update label text color
+        if NarzLocalESP.ESP then
+            local label = NarzLocalESP.ESP:FindFirstChild("Distance")
+            if label then
+                label.TextColor3 = selectedColor
+            end
+        end
+
+        -- Update highlight
+        if NarzLocalESP.Highlight then
+            NarzLocalESP.Highlight.FillColor = selectedColor
+            NarzLocalESP.Highlight.OutlineColor = selectedColor
+        end
+    end
+})
+local Divider = Tab:CreateDivider()
+-- esp pod
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local FreezePodESP = {
+    Active = false,
+    Highlights = {},
+    Connections = {},
+}
+
+local highlightColor = Color3.fromRGB(0, 200, 255)
+
+local function clearAll()
+    for _, hl in pairs(FreezePodESP.Highlights) do
+        if hl and hl.Parent then
+            hl:Destroy()
+        end
+    end
+    FreezePodESP.Highlights = {}
+
+    for _, conn in ipairs(FreezePodESP.Connections) do
+        conn:Disconnect()
+    end
+    FreezePodESP.Connections = {}
+end
+
+local function createHighlight(model)
+    if FreezePodESP.Highlights[model] then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "FreezePodHighlight"
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillTransparency = 0.5
+    hl.OutlineTransparency = 0
+    hl.FillColor = highlightColor
+    hl.OutlineColor = highlightColor
+    hl.Parent = model
+
+    FreezePodESP.Highlights[model] = hl
+end
+
+local function activateESP()
+    clearAll()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name == "FreezePod" then
+            createHighlight(obj)
+        end
+    end
+    FreezePodESP.Active = true
+
+    table.insert(FreezePodESP.Connections, Workspace.DescendantAdded:Connect(function(obj)
+        if obj:IsA("Model") and obj.Name == "FreezePod" and FreezePodESP.Active then
+            task.wait(0.5)
+            createHighlight(obj)
+        end
+    end))
+end
+
+local function deactivateESP()
+    clearAll()
+    FreezePodESP.Active = false
+end
+
+local Toggle = Tab:CreateToggle({
+    Name = "FreezePod ESP",
+    CurrentValue = false,
+    Flag = "FreezePodESP",
+    Callback = function(value)
+        if value then
+            activateESP()
+        else
+            deactivateESP()
+        end
+    end,
+})
+
+local ColorPicker = Tab:CreateColorPicker({
+    Name = "FreezePod ESP Color",
+    Color = highlightColor,
+    Flag = "FreezePodESPColor",
+    Callback = function(value)
+        highlightColor = value
+        for _, hl in pairs(FreezePodESP.Highlights) do
+            if hl and hl.Parent then
+                hl.FillColor = highlightColor
+                hl.OutlineColor = highlightColor
+            end
+        end
+    end,
+})
+
+
+-- end esp pod
+local Divider = Tab:CreateDivider()
+-- start beast chance
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local espData = {
+    Labels = {},
+    Connections = {}
+}
+
+local function clearLabels()
+    for _, lbl in pairs(espData.Labels) do
+        if lbl and lbl.Parent then
+            lbl:Destroy()
+        end
+    end
+    for _, conn in pairs(espData.Connections) do
+        conn:Disconnect()
+    end
+    espData.Labels = {}
+    espData.Connections = {}
+end
+
+local function createLabel(player, text, color)
+    if not player.Character then return end
+    local head = player.Character:FindFirstChild("Head")
+    if not head then return end
+
+    if espData.Labels[player] then
+        espData.Labels[player]:Destroy()
+        espData.Labels[player] = nil
+    end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "BeastChanceLabel"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 180, 0, 40)
+    billboard.AlwaysOnTop = true
+    billboard.ExtentsOffset = Vector3.new(0, 3, 0)
+    billboard.Parent = head
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.TextStrokeTransparency = 0.7
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 16
+    label.TextColor3 = color or Color3.new(1, 1, 1)
+    label.Text = text
+    label.Parent = billboard
+
+    espData.Labels[player] = billboard
+end
+
+local function updateLabels()
+    clearLabels()
+
+    local chances = {}
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        local stats = player:FindFirstChild("SavedPlayerStatsModule")
+        if stats then
+            local chanceObj = stats:FindFirstChild("BeastChance")
+            if chanceObj and chanceObj:IsA("IntValue") then
+                chances[player] = chanceObj.Value
+            end
+        end
+    end
+
+    local sorted = {}
+    for ply, val in pairs(chances) do
+        table.insert(sorted, {player = ply, chance = val})
+    end
+    table.sort(sorted, function(a,b) return a.chance > b.chance end)
+
+    if #sorted == 0 then return end
+
+    -- Etichetă pe tine dacă ai cea mai mare șansă
+    if sorted[1].player == LocalPlayer and sorted[1].chance > 0 then
+        createLabel(LocalPlayer, string.format("You will be the most likely to be beast\n%d%% chance", sorted[1].chance), Color3.fromRGB(255, 0, 255))
+    else
+        -- 1 și 2 dacă nu ești tu
+        if sorted[1].chance > 0 and sorted[1].player.Character and sorted[1].player.Character:FindFirstChild("Head") then
+            createLabel(sorted[1].player, string.format("Most likely to be Beast\n%d%% chance", sorted[1].chance), Color3.fromRGB(255, 0, 0))
+        end
+        if #sorted >= 2 and sorted[2].chance > 0 and sorted[2].player.Character and sorted[2].player.Character:FindFirstChild("Head") then
+            createLabel(sorted[2].player, string.format("Second most likely to be Beast\n%d%% chance", sorted[2].chance), Color3.fromRGB(255, 165, 0))
+        end
+    end
+end
+
+local function activateBeastChanceESP()
+    updateLabels()
+    table.insert(espData.Connections, RunService.Heartbeat:Connect(updateLabels))
+end
+
+local function deactivateBeastChanceESP()
+    clearLabels()
+    for _, conn in pairs(espData.Connections) do
+        conn:Disconnect()
+    end
+    espData.Connections = {}
+end
+
+Tab:CreateToggle({
+    Name = "Beast Chance ESP",
+    CurrentValue = false,
+    Flag = "BeastChanceESP",
+    Callback = function(value)
+        if value then
+            activateBeastChanceESP()
+        else
+            deactivateBeastChanceESP()
+        end
+    end,
+})
+
+-- end beast chance
+local Divider = Tab:CreateDivider()
+-- start ChatTAg
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function ApplyFakeVIP()
+    local statsModule = LocalPlayer:FindFirstChild("SavedPlayerStatsModule")
+
+    if not statsModule then
+        statsModule = Instance.new("Folder")
+        statsModule.Name = "SavedPlayerStatsModule"
+        statsModule.Parent = LocalPlayer
+    end
+
+    local vipValue = statsModule:FindFirstChild("VIP")
+    if not vipValue then
+        vipValue = Instance.new("BoolValue")
+        vipValue.Name = "VIP"
+        vipValue.Parent = statsModule
+    end
+
+    vipValue.Value = true
+end
+
+-- 🧨 UI Button
+local Button = Tab:CreateButton({
+   Name = "Enable Fake [VIP] Tag",
+   Callback = function()
+       ApplyFakeVIP()
+   end,
+})
+
+--end chattag
+local TabVisuals = Window:CreateTab("Visuals", nil) -- Tab-ul tău de visuals, bă câine
+
+local shaderEnabled = false
+
+local Bloom, Tropic, Sky, Blur, Efecto, Inaritaisha, Normal, SunRays, Sunset, Takayama
+
+local function enableShaders()
+    if not game:IsLoaded() then
+        game.Loaded:Wait()
+    end
+
+    -- Bloom Effect
+    Bloom = Instance.new("BloomEffect")
+    Bloom.Intensity = 0.1
+    Bloom.Threshold = 0
+    Bloom.Size = 100
+
+    Tropic = Instance.new("Sky")
+    Tropic.Name = "Tropic"
+    Tropic.SkyboxUp = "http://www.roblox.com/asset/?id=169210149"
+    Tropic.SkyboxLf = "http://www.roblox.com/asset/?id=169210133"
+    Tropic.SkyboxBk = "http://www.roblox.com/asset/?id=169210090"
+    Tropic.SkyboxFt = "http://www.roblox.com/asset/?id=169210121"
+    Tropic.StarCount = 100
+    Tropic.SkyboxDn = "http://www.roblox.com/asset/?id=169210108"
+    Tropic.SkyboxRt = "http://www.roblox.com/asset/?id=169210143"
+    Tropic.Parent = Bloom
+
+    Sky = Instance.new("Sky")
+    Sky.SkyboxUp = "http://www.roblox.com/asset/?id=196263782"
+    Sky.SkyboxLf = "http://www.roblox.com/asset/?id=196263721"
+    Sky.SkyboxBk = "http://www.roblox.com/asset/?id=196263721"
+    Sky.SkyboxFt = "http://www.roblox.com/asset/?id=196263721"
+    Sky.CelestialBodiesShown = false
+    Sky.SkyboxDn = "http://www.roblox.com/asset/?id=196263643"
+    Sky.SkyboxRt = "http://www.roblox.com/asset/?id=196263721"
+    Sky.Parent = Bloom
+
+    Bloom.Parent = game:GetService("Lighting")
+
+    -- More Effects
+    Blur = Instance.new("BlurEffect")
+    Blur.Size = 2
+    Blur.Parent = game:GetService("Lighting")
+
+    Efecto = Instance.new("BlurEffect")
+    Efecto.Name = "Efecto"
+    Efecto.Enabled = false
+    Efecto.Size = 2
+    Efecto.Parent = game:GetService("Lighting")
+
+    Inaritaisha = Instance.new("ColorCorrectionEffect")
+    Inaritaisha.Name = "Inari taisha"
+    Inaritaisha.Saturation = 0.05
+    Inaritaisha.TintColor = Color3.fromRGB(255, 224, 219)
+    Inaritaisha.Parent = game:GetService("Lighting")
+
+    Normal = Instance.new("ColorCorrectionEffect")
+    Normal.Name = "Normal"
+    Normal.Enabled = false
+    Normal.Saturation = -0.2
+    Normal.TintColor = Color3.fromRGB(255, 232, 215)
+    Normal.Parent = game:GetService("Lighting")
+
+    SunRays = Instance.new("SunRaysEffect")
+    SunRays.Intensity = 0.05
+    SunRays.Parent = game:GetService("Lighting")
+
+    Sunset = Instance.new("Sky")
+    Sunset.Name = "Sunset"
+    Sunset.SkyboxUp = "rbxassetid://323493360"
+    Sunset.SkyboxLf = "rbxassetid://323494252"
+    Sunset.SkyboxBk = "rbxassetid://323494035"
+    Sunset.SkyboxFt = "rbxassetid://323494130"
+    Sunset.SkyboxDn = "rbxassetid://323494368"
+    Sunset.SunAngularSize = 14
+    Sunset.SkyboxRt = "rbxassetid://323494067"
+    Sunset.Parent = game:GetService("Lighting")
+
+    Takayama = Instance.new("ColorCorrectionEffect")
+    Takayama.Name = "Takayama"
+    Takayama.Enabled = false
+    Takayama.Saturation = -0.3
+    Takayama.Contrast = 0.1
+    Takayama.TintColor = Color3.fromRGB(235, 214, 204)
+    Takayama.Parent = game:GetService("Lighting")
+
+    -- Ajustări Lighting
+    local L = game:GetService("Lighting")
+    L.Brightness = 2.14
+    L.ColorShift_Bottom = Color3.fromRGB(11, 0, 20)
+    L.ColorShift_Top = Color3.fromRGB(240, 127, 14)
+    L.OutdoorAmbient = Color3.fromRGB(34, 0, 49)
+    L.ClockTime = 6.7
+    L.FogColor = Color3.fromRGB(94, 76, 106)
+    L.FogEnd = 1000
+    L.FogStart = 0
+    L.ExposureCompensation = 0.24
+    L.ShadowSoftness = 0
+    L.Ambient = Color3.fromRGB(59, 33, 27)
+end
+
+local function disableShaders()
+    -- Curățenie, scoate toate astea din Lighting ca să nu se mai vadă shaderul
+    if Bloom then Bloom:Destroy() end
+    if Tropic then Tropic:Destroy() end
+    if Sky then Sky:Destroy() end
+    if Blur then Blur:Destroy() end
+    if Efecto then Efecto:Destroy() end
+    if Inaritaisha then Inaritaisha:Destroy() end
+    if Normal then Normal:Destroy() end
+    if SunRays then SunRays:Destroy() end
+    if Sunset then Sunset:Destroy() end
+    if Takayama then Takayama:Destroy() end
+
+    -- Resetări Lighting la default sau ceva ce vrei tu
+    local L = game:GetService("Lighting")
+    L.Brightness = 2
+    L.ColorShift_Bottom = Color3.new(0, 0, 0)
+    L.ColorShift_Top = Color3.new(0, 0, 0)
+    L.OutdoorAmbient = Color3.new(0, 0, 0)
+    L.ClockTime = 12
+    L.FogColor = Color3.new(1, 1, 1)
+    L.FogEnd = 100000
+    L.FogStart = 0
+    L.ExposureCompensation = 0
+    L.ShadowSoftness = 0.5
+    L.Ambient = Color3.new(1, 1, 1)
+end
+
+local toggleShaders = TabVisuals:CreateToggle({
+    Name = "Shaders",
+    CurrentValue = false,
+    Flag = "ShadersToggle",
+    Callback = function(value)
+        shaderEnabled = value
+        if value then
+            enableShaders()
+        else
+            disableShaders()
+        end
+    end,
+})
+
+
+-- end esp tab
+-- start sound tab
+local Tab = Window:CreateTab("Sound", nil) -- Title, Image
+
+-- start sound
+-- Toggle în UI
+local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Sunet Setup
+local capturedSound = Instance.new("Sound")
+capturedSound.SoundId = "rbxassetid://82635963679205"
+capturedSound.Volume = 0.5
+capturedSound.Name = "CapturedAlert"
+capturedSound.Parent = SoundService
+
+local alreadyCaptured = {}
+
+-- Fallback în caz că UI nu-l seteză corect
+_G.CapturedSoundEnabled = true
+
+-- TOGGLE în UI
+local Toggle = Tab:CreateToggle({
+   Name = "Captured Sound Alert",
+   CurrentValue = true, -- Afișează ca activat
+   Flag = "CapturedSoundToggle",
+   Callback = function(Value)
+      _G.CapturedSoundEnabled = Value
+   end,
+})
+
+-- Setăm activarea reală DUPĂ ce UI-ul e gata
+task.defer(function()
+	Toggle:Set(true) -- Safe acum
+end)
+
+-- Funcție pentru monitorizare captură
+local function monitorPlayer(player)
+	if player == LocalPlayer then return end
+
+	local function connectToCaptured()
+		local stats = player:FindFirstChild("TempPlayerStatsModule")
+		if stats then
+			local capturedValue = stats:FindFirstChild("Captured")
+			if capturedValue and capturedValue:IsA("BoolValue") then
+				capturedValue:GetPropertyChangedSignal("Value"):Connect(function()
+					if _G.CapturedSoundEnabled then
+						if capturedValue.Value and not alreadyCaptured[player] then
+							alreadyCaptured[player] = true
+							capturedSound:Play()
+							print("[ALERTĂ] " .. player.Name .. " a fost capturat bă câine bă!")
+						elseif not capturedValue.Value then
+							alreadyCaptured[player] = false
+						end
+					end
+				end)
+			end
+		end
+	end
+
+	-- Așteptăm dacă modulul nu există
+	if player:FindFirstChild("TempPlayerStatsModule") then
+		connectToCaptured()
+	else
+		player.ChildAdded:Connect(function(child)
+			if child.Name == "TempPlayerStatsModule" then
+				task.wait(0.2)
+				connectToCaptured()
+			end
+		end)
+	end
+end
+
+-- Toți playerii existenți
+for _, player in ipairs(Players:GetPlayers()) do
+	monitorPlayer(player)
+end
+
+-- Playeri noi
+Players.PlayerAdded:Connect(monitorPlayer)
+
+-- end sound
+
+-- Muzică Custom HVH
+-- Setup UI Sound Tab
+local Workspace = game:GetService("Workspace")
+local defaultSoundId = "rbxassetid://1837015626"
+local currentSoundId = defaultSoundId
+
+-- Ștergem toate scripturile BackgroundMusicLocalScript din workspace
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("LocalScript") and obj.Name == "BackgroundMusicLocalScript" then
+        obj:Destroy()
+    end
+end
+
+local musicEnabled = true
+
+local function SetCustomSound(enabled)
+    local music = Workspace:FindFirstChild("HVHSound")
+    if enabled then
+        if not music then
+            local newSound = Instance.new("Sound")
+            newSound.Name = "HVHSound"
+            newSound.SoundId = currentSoundId
+            newSound.Volume = 1
+            newSound.Looped = true
+            newSound.Playing = true
+            newSound.Parent = Workspace
+        else
+            if not music.IsPlaying then
+                music:Play()
+            end
+        end
+    else
+        if music then
+            music:Stop()
+            music:Destroy()
+        end
+    end
+end
+
+local Toggle = Tab:CreateToggle({
+    Name = "Enable Custom Music",
+    CurrentValue = true,
+    Flag = "CustomMusicToggle",
+    Callback = function(value)
+        musicEnabled = value
+        SetCustomSound(value)
+    end,
+})
+
+local Input = Tab:CreateInput({
+    Name = "Custom SoundId",
+    CurrentValue = "",
+    PlaceholderText = "rbxassetid://...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "CustomSoundIdInput",
+    Callback = function(text)
+        if text and text ~= "" then
+            -- Fix ca să accepte și doar numărul, fără rbxassetid://
+            if not string.find(text, "rbxassetid://") then
+                text = "rbxassetid://" .. text
+            end
+            currentSoundId = text
+            print("SoundId schimbat la: " .. currentSoundId)
+            if musicEnabled then
+                local music = Workspace:FindFirstChild("HVHSound")
+                if music then
+                    music:Stop()
+                    music.SoundId = currentSoundId
+                    music:Play()
+                else
+                    SetCustomSound(true)
+                end
+            end
+        else
+            print("SoundId invalid, rămânem pe default.")
+            currentSoundId = defaultSoundId
+            if musicEnabled then
+                local music = Workspace:FindFirstChild("HVHSound")
+                if music then
+                    music:Stop()
+                    music.SoundId = currentSoundId
+                    music:Play()
+                else
+                    SetCustomSound(true)
+                end
+            end
+        end
+    end,
+})
+
+SetCustomSound(true)
+Toggle:Set(true)
+
+
+
+-- end soundtab
+-- start misc tab
+
+
+local Tab = Window:CreateTab("Chat", nil) -- Title, Image
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Variabilă pentru Fake Duck activat
+local FakeDuckEnabled = false
+
+-- Toggle din UI
+-- trash talk
+
+
+-- Pregătim trash-ul, că avem de livrat
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
+local isLegacyChat = not pcall(function()
+    return TextChatService.TextChannels.RBXGeneral
+end)
+
+local function chatMessage(str)
+    str = tostring(str)
+    if not isLegacyChat then
+        TextChatService.TextChannels.RBXGeneral:SendAsync(str)
+    else
+        ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(str, "All")
+    end
+end
+
+local RandomChatMessages = {
+    "io bă câine, joc cu ochii închiși și tot te bat mai rău ca dracu’",
+    "serios man? te joci sau dormi pe tastatură?",
+    "NarzWare mă face să zbor prin joc, bă câine",
+    "Yeah bro, I use NarzWare, how did you know?", 
+    "NarzWare got me winning every damn game.", 
+    "Without NarzWare, you’re just lost, man.", 
+    "I run the game with NarzWare, no cap.", 
+    "NarzWare is the secret sauce, bro.", 
+    "If you ain't on NarzWare, you ain’t in the squad.", 
+    "Bro, NarzWare makes me untouchable.", 
+    "NarzWare is like a legend, you don’t just get it.", 
+    "I’ve been rocking NarzWare since day one, no lie.", 
+    "NarzWare gave me skills no one else has.", 
+    "Using NarzWare? Yeah, that’s how I dominate.", 
+    "Bro, NarzWare is the plug, don’t sleep on it.", 
+    "Got NarzWare loaded up, ready to flex.", 
+    "When I drop, NarzWare drops with me.", 
+    "NarzWare is life, man, can’t live without it.", 
+    "Bro, if you want wins, you gotta have NarzWare.", 
+    "NarzWare makes this game look easy, seriously.", 
+    "I don't cheat, I just got NarzWare skills.", 
+    "Ask me how I’m so good? It’s NarzWare, bro.", 
+    "NarzWare’s the real MVP behind my gameplay.", 
+    "Without NarzWare, you’re just another noob.", 
+    "Bro, NarzWare got me playing like a pro 24/7.", 
+    "NarzWare’s got my back, every single match.", 
+    "You think I’m good? Wait ‘til you see NarzWare in action.", 
+    "I don’t lose, I just upgrade with NarzWare.", 
+    "NarzWare’s the edge that nobody else has.", 
+    "Bro, it’s NarzWare or nothing, that’s how we do.", 
+        "Da frate, folosesc NarzWare, ce crezi?", 
+    "Yeah bro, I use NarzWare, how did you know?", 
+    "NarzWare e ca o legendă, n-ai ce să-i faci.", 
+    "Bro, fără NarzWare e ca și cum ai juca cu mâinile legate.", 
+    "Dacă n-ai NarzWare, nu ești în legiune.", 
+    "NarzWare mă face să zbor prin joc, bă câine.", 
+    "Ce să zic, NarzWare e arma secretă, frate.", 
+    "Bro, folosesc NarzWare și mă simt ca un boss adevărat.", 
+    "NarzWare e motivul pentru care câștig mereu, serios man.", 
+    "Fără NarzWare, jocul ăsta nu are nici o șansă.", 
+    "Bro, NarzWare e ca o legendă urbană, dar eu sunt real.", 
+    "Nu glumesc, NarzWare e tot ce am nevoie să domin.", 
+    "Dă-i bă, NarzWare face toți fraierii să tremure.", 
+    "NarzWare is life, bro, fără glumă.", 
+    "Folosesc NarzWare de când eram mic, știi tu.",
+        "Bro, did you get born to lose or is today your lucky day?", 
+    "I play blindfolded and still beat you worse than the devil.", 
+    "What’s up with your lag? Or is that your excuse for losing?", 
+    "Even your mom stopped caring after watching you play like that.", 
+    "Did you complete a conspiracy to be this bad or is it natural talent?", 
+    "I see you crying on your keyboard but there’s nothing you can do about it", 
+    "Seriously, man? Thought I was facing a player, not a lagging NPC.", 
+    "If you keep losing like this, just stay home and watch cartoons.", 
+    "Go learn how to play properly, you’re embarrassing the whole clan.", 
+    "When will you level up? Until then, stay in your lane.", 
+    "Bro, are you playing or just spinning in circles? Can’t tell.", 
+    "Give me some tips, cause I haven’t seen you be good at all.", 
+    "I’m too good to let you win, that’s for sure.", 
+    "When will you buy some skills or update yourself? Urgent.", 
+    "You play like a legion boss who ran out of ammo.", 
+    "Wait, was that a player or your friend talking to the wall?", 
+    "Bro, don’t know if I should laugh or cry at what you’re doing.", 
+    "You’re the reason some people quit this game.", 
+    "It’s not your fault you lose, it’s the game’s fault for not kicking you.", 
+    "I swear, with that skill, you’re a walking meme.",
+}
+
+-- variabilă de control global
+_G.NarzTrashTalk = _G.NarzTrashTalk or {Active = false, Thread = nil}
+
+-- funcția care pornește spam-ul
+local function startTrashTalk()
+    if _G.NarzTrashTalk.Active then return end
+    _G.NarzTrashTalk.Active = true
+    _G.NarzTrashTalk.Thread = task.spawn(function()
+        while _G.NarzTrashTalk.Active do
+            local msg = RandomChatMessages[math.random(1, #RandomChatMessages)]
+            chatMessage(msg)
+            task.wait(2.5)
+        end
+    end)
+end
+
+-- funcția care oprește spam-ul
+local function stopTrashTalk()
+    _G.NarzTrashTalk.Active = false
+end
+
+-- UI Toggle real (activ/dezactivare trashtalk)
+local Toggle = Tab:CreateToggle({
+    Name = "Trashtalk",
+    CurrentValue = false,
+    Flag = "TrashToggle",
+    Callback = function(Value)
+        if Value then
+            startTrashTalk()
+        else
+            stopTrashTalk()
+        end
+    end,
+})
+-- end trash talk
+local Tab = Window:CreateTab("Misc", nil) -- Title, Image
+-- start noclip
+-- ✅ Noclip feature
+local noclipEnabled = false
+local noclipConnection = nil
+
+local function enableNoclip()
+    if noclipConnection then return end
+    noclipConnection = RunService.Stepped:Connect(function()
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide == true then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+end
+
+local Toggle = Tab:CreateToggle({
+    Name = "Noclip (walk through walls)",
+    CurrentValue = false,
+    Flag = "NoclipToggle",
+    Callback = function(Value)
+        noclipEnabled = Value
+        if Value then
+            enableNoclip()
+        else
+            disableNoclip()
+        end
+    end,
+-- end noclip
+})
+
+local Button = Tab:CreateButton({
+   Name = "destroy UI",
+   Callback = function()
+   Rayfield:Destroy()
+   end,
+})
+-- start changelog
+local Tab = Window:CreateTab("Change Log", nil) -- Title, Image
+local Paragraph = Tab:CreateParagraph({
+    Title = "v0.8",
+    Content = "Added Fake Duck with smooth animation and notifications, improved Beast Chance ESP showing local player info, enhanced FreezePod ESP highlights, improved Replication Lag / Backtrack, cleaned up PC ESP visuals, refined Player ESP to be less annoying, plus added Event tab and Changelog tab."
+})
+local Paragraph = Tab:CreateParagraph({Title = "v0.7", Content = "Reworked Speed Hack to apply WalkSpeed in loop while enabled, fixed Custom Music to auto-start on load, resolved disappearing tabs and ensured stable toggle behavior."})
+local Paragraph = Tab:CreateParagraph({Title = "v0.6", Content = "Anti-Aim Spin now uses a speed slider, improved custom music callback validation (no crash on invalid ID), organized toggle/input UI layout."})
+local Paragraph = Tab:CreateParagraph({Title = "v0.5", Content = "Added Custom Music system: toggle to mute default game music, input for custom audio ID, plays cleanly; fixed tab visibility issues."})
+local Paragraph = Tab:CreateParagraph({Title = "v0.4", Content = "Expanded Visuals tab with Freeze Pod ESP, Local Player ESP, Beast Chance ESP, and Fake VIP Tag (chat and leaderboard, local-only)."})
+local Paragraph = Tab:CreateParagraph({Title = "v0.3", Content = "Introduced Rage tab with Fling Mode and Replication Lag (visual backtrack), added No Fail on Hack to Legit tab using RemoteEvent spoofing."})
+local Paragraph = Tab:CreateParagraph({Title = "v0.2", Content = "Added No Clip to Misc tab, improved Anti-Aim Spin stability, and enabled Trash Talk cycling system."})
+local Paragraph = Tab:CreateParagraph({Title = "v0.1", Content = "Added Visuals tab (Computer ESP, Player ESP), Anti-Aim Spin (basic), Trash Talk"})
