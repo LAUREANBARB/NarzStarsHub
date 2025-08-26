@@ -1289,160 +1289,92 @@ Tab:CreateToggle({
 
 -- end beast chance
 local Divider = Tab:CreateDivider()
--- start shader
 
-local Lighting = game:GetService("Lighting")
 
-local shaderEnabled = false
-local effects = {}
+-- start stretch
 
-local function enableShaders()
-    if shaderEnabled then return end
-    shaderEnabled = true
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
-    -- Bloom
-    local Bloom = Instance.new("BloomEffect")
-    Bloom.Intensity = 0.1
-    Bloom.Threshold = 0
-    Bloom.Size = 100
-    Bloom.Name = "CustomBloom"
-    Bloom.Parent = Lighting
-    table.insert(effects, Bloom)
+local Camera = Workspace.CurrentCamera
+local Active = false
+local Bind = "StretchResolutionBind" -- un nume unic ca legiune
 
-    -- Sky Tropic
-    local Tropic = Instance.new("Sky")
-    Tropic.Name = "CustomTropic"
-    Tropic.SkyboxUp = "http://www.roblox.com/asset/?id=169210149"
-    Tropic.SkyboxLf = "http://www.roblox.com/asset/?id=169210133"
-    Tropic.SkyboxBk = "http://www.roblox.com/asset/?id=169210090"
-    Tropic.SkyboxFt = "http://www.roblox.com/asset/?id=169210121"
-    Tropic.StarCount = 100
-    Tropic.SkyboxDn = "http://www.roblox.com/asset/?id=169210108"
-    Tropic.SkyboxRt = "http://www.roblox.com/asset/?id=169210143"
-    Tropic.Parent = Bloom
-    table.insert(effects, Tropic)
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = Workspace.CurrentCamera
+end)
 
-    -- Sky
-    local Sky = Instance.new("Sky")
-    Sky.Name = "CustomSky"
-    Sky.SkyboxUp = "http://www.roblox.com/asset/?id=196263782"
-    Sky.SkyboxLf = "http://www.roblox.com/asset/?id=196263721"
-    Sky.SkyboxBk = "http://www.roblox.com/asset/?id=196263721"
-    Sky.SkyboxFt = "http://www.roblox.com/asset/?id=196263721"
-    Sky.CelestialBodiesShown = false
-    Sky.SkyboxDn = "http://www.roblox.com/asset/?id=196263643"
-    Sky.SkyboxRt = "http://www.roblox.com/asset/?id=196263721"
-    Sky.Parent = Bloom
-    table.insert(effects, Sky)
-
-    -- Blur
-    local Blur = Instance.new("BlurEffect")
-    Blur.Name = "CustomBlur"
-    Blur.Size = 2
-    Blur.Parent = Lighting
-    table.insert(effects, Blur)
-
-    -- ColorCorrection Inari taisha
-    local Inaritaisha = Instance.new("ColorCorrectionEffect")
-    Inaritaisha.Name = "CustomInaritaisha"
-    Inaritaisha.Saturation = 0.05
-    Inaritaisha.TintColor = Color3.fromRGB(255, 224, 219)
-    Inaritaisha.Parent = Lighting
-    table.insert(effects, Inaritaisha)
-
-    -- ColorCorrection Normal
-    local Normal = Instance.new("ColorCorrectionEffect")
-    Normal.Name = "CustomNormal"
-    Normal.Enabled = false
-    Normal.Saturation = -0.2
-    Normal.TintColor = Color3.fromRGB(255, 232, 215)
-    Normal.Parent = Lighting
-    table.insert(effects, Normal)
-
-    -- SunRays
-    local SunRays = Instance.new("SunRaysEffect")
-    SunRays.Name = "CustomSunRays"
-    SunRays.Intensity = 0.05
-    SunRays.Parent = Lighting
-    table.insert(effects, SunRays)
-
-    -- Sky Sunset
-    local Sunset = Instance.new("Sky")
-    Sunset.Name = "CustomSunset"
-    Sunset.SkyboxUp = "rbxassetid://323493360"
-    Sunset.SkyboxLf = "rbxassetid://323494252"
-    Sunset.SkyboxBk = "rbxassetid://323494035"
-    Sunset.SkyboxFt = "rbxassetid://323494130"
-    Sunset.SkyboxDn = "rbxassetid://323494368"
-    Sunset.SunAngularSize = 14
-    Sunset.SkyboxRt = "rbxassetid://323494067"
-    Sunset.Parent = Lighting
-    table.insert(effects, Sunset)
-
-    -- ColorCorrection Takayama
-    local Takayama = Instance.new("ColorCorrectionEffect")
-    Takayama.Name = "CustomTakayama"
-    Takayama.Enabled = false
-    Takayama.Saturation = -0.3
-    Takayama.Contrast = 0.1
-    Takayama.TintColor = Color3.fromRGB(235, 214, 204)
-    Takayama.Parent = Lighting
-    table.insert(effects, Takayama)
-
-    -- Adjust Lighting settings
-    Lighting.Brightness = 2.14
-    Lighting.ColorShift_Bottom = Color3.fromRGB(11, 0, 20)
-    Lighting.ColorShift_Top = Color3.fromRGB(240, 127, 14)
-    Lighting.OutdoorAmbient = Color3.fromRGB(34, 0, 49)
-    Lighting.ClockTime = 6.7
-    Lighting.FogColor = Color3.fromRGB(94, 76, 106)
-    Lighting.FogEnd = 1000
-    Lighting.FogStart = 0
-    Lighting.ExposureCompensation = 0.24
-    Lighting.ShadowSoftness = 0
-    Lighting.Ambient = Color3.fromRGB(59, 33, 27)
-end
-
-local function disableShaders()
-    if not shaderEnabled then return end
-    shaderEnabled = false
-
-    for _, effect in pairs(effects) do
-        if effect and effect.Parent then
-            effect:Destroy()
+local function ApplyStretch(value)
+    if not value or tonumber(value) == nil then
+        if Active then
+            RunService:UnbindFromRenderStep(Bind)
+            Active = false
         end
+        return
     end
-    effects = {}
 
-    -- Reset Lighting settings to default or whatever you want
-    Lighting.Brightness = 1
-    Lighting.ColorShift_Bottom = Color3.new(0,0,0)
-    Lighting.ColorShift_Top = Color3.new(0,0,0)
-    Lighting.OutdoorAmbient = Color3.new(1,1,1)
-    Lighting.ClockTime = 12
-    Lighting.FogColor = Color3.new(1,1,1)
-    Lighting.FogEnd = 100000
-    Lighting.FogStart = 0
-    Lighting.ExposureCompensation = 0
-    Lighting.ShadowSoftness = 0.5
-    Lighting.Ambient = Color3.new(1,1,1)
+    local stretchValue = tonumber(value)
+    stretchValue = math.clamp(stretchValue, 1, 100)
+    local Stretch = 1 / stretchValue
+
+    if Stretch == 1 then
+        if Active then
+            RunService:UnbindFromRenderStep(Bind)
+            Active = false
+        end
+        return
+    end
+
+    if Active then
+        RunService:UnbindFromRenderStep(Bind)
+    end
+
+    local SquishCFrame = CFrame.new(0, 0, 0, 1, 0, 0, 0, Stretch, 0, 0, 0, 1)
+
+    RunService:BindToRenderStep(Bind, Enum.RenderPriority.Camera.Value + 5, function()
+        if Camera then
+            Camera.CFrame = Camera.CFrame * SquishCFrame
+        end
+    end)
+
+    Active = true
 end
+
+-- aici faci toggle + input text in UI
 
 local Toggle = Tab:CreateToggle({
-    Name = "Enable Shaders",
+    Name = "Stretch Resolution",
     CurrentValue = false,
-    Flag = "ShadersToggle",
+    Flag = "StretchResToggle",
     Callback = function(value)
-        if value then
-            enableShaders()
+        if not value then
+            ApplyStretch(nil) -- dezactivează stretch
         else
-            disableShaders()
+            -- dacă e on dar nu ai pus încă valoare, pune default 2 ca la legiune
+            local defaultStretch = tonumber(CurrentInputValue) or 2
+            ApplyStretch(defaultStretch)
+        end
+    end,
+})
+
+local CurrentInputValue = ""
+
+local Input = Tab:CreateInput({
+    Name = "Stretch Value (1-100)",
+    CurrentValue = "",
+    PlaceholderText = "Ex: 2",
+    RemoveTextAfterFocusLost = false,
+    Flag = "StretchResInput",
+    Callback = function(text)
+        CurrentInputValue = text
+        if Toggle.CurrentValue then
+            ApplyStretch(text)
         end
     end,
 })
 
 
---end shader
+-- end stretch
 
 
 -- start ChatTAg
